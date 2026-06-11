@@ -26,6 +26,9 @@ python run.py        # → http://localhost:8000
 
 ## Deploy
 
+## Link to open the running version 
+https://huggingface.co/spaces/Ap-0007/RoadSafety-AI
+
 The whole app is a single Docker container (UI + API + WebSockets). It runs on
 any container host with ~2 GB RAM — Hugging Face Spaces (Docker), Google Cloud
 Run, or Render. See [DEPLOY.md](DEPLOY.md) for the Cloud Run recipe.

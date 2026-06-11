@@ -26,6 +26,12 @@ python run.py        # → http://localhost:8000
 
 ## Deploy
 
+
+## Link to opne the running version
+
+https://github.com/krishiv47/roadsafety-sim/edit/main/README.md
+
+
 The whole app is a single Docker container (UI + API + WebSockets). It runs on
 any container host with ~2 GB RAM — Hugging Face Spaces (Docker), Google Cloud
 Run, or Render. See [DEPLOY.md](DEPLOY.md) for the Cloud Run recipe.

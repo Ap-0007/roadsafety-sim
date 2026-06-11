@@ -1,0 +1,6 @@
+{
+  "name": "Civic Sentinel AI",
+  "description": "City safety, emergency dispatch, and autonomous transit flow optimization operations room.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

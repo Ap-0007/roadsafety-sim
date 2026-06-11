@@ -1,0 +1,596 @@
+════════════════════════════════════════════════════════════════
+  GOOGLE STITCH — COMPLETE FRONTEND REDESIGN PROMPT
+  Road Safety AI System · Smart India Hackathon 2025
+════════════════════════════════════════════════════════════════
+
+WHAT YOU ARE BUILDING
+─────────────────────
+A complete, production-ready frontend redesign for a real-time
+road safety monitoring platform running on Indian city roads.
+The backend is FastAPI + WebSocket — DO NOT change any API calls,
+WebSocket logic, or data processing. Only the visual design,
+layout, and CSS change. Every feature must work identically.
+
+Design language: Modern civic-tech dashboard. Clean, professional,
+trustworthy. Think Google Maps + government control room + Notion.
+Light/dark toggle. Primary color: deep saffron-orange (#F97316).
+Accent: India-green (#16A34A). Danger: red (#DC2626).
+Background: near-white (#FAFAFA) in light mode, slate (#0F172A)
+in dark. Fonts: Inter (headings) + DM Sans (body). Rounded cards,
+subtle shadows, generous whitespace. No neon, no cyber aesthetic.
+
+
+════════════════════════════════════════════════════════════════
+PAGE 1 — CITY LIVE MAP  (index.html)
+════════════════════════════════════════════════════════════════
+
+URL: http://localhost:8000/
+Backend WebSocket: ws://{host}/ws  (receives JSON {type:"state", buses:[], events:[], alerts:[]})
+Poll: GET /api/routes  on load
+Poll: GET /api/health  on load
+
+── LAYOUT ──────────────────────────────────────────────────────
+Full-viewport layout. No scroll. Three zones:
+  [TOP NAV BAR — 56px fixed]
+  [LEFT SIDEBAR — 320px, collapsible on mobile]
+  [MAP — fills remaining width and height]
+
+── TOP NAV BAR ─────────────────────────────────────────────────
+Left:   🛡️ logo  |  "Road Safety AI"  |  "Smart India Hackathon 2025" (muted, small)
+Center: Three pill-shaped live stat chips (update every 2s from WS):
+        [🚌 {bus_count} Buses]  [⚠️ {event_count} Events]  [🚨 {emg_count} Emergency]
+Right:  WS connection dot (green pulse = connected, red = error)
+        |  Light/dark toggle  |  [Authority →] button (links to /authority)
+
+── LEFT SIDEBAR ────────────────────────────────────────────────
+Tab strip at top:
+  [📡 Live]  [🔍 Detect]  [📈 Scale]
+Default active tab: Live
+
+--- TAB 1: LIVE ---
+Events feed — real-time scrollable list of active events from WS state.
+Each event card shows:
+  - Left colored strip: red=critical, orange=high, yellow=medium, green=low
+  - Icon (pothole🕳️ / accident🚗 / waterlogging🌊 / fallen_tree🌲 / roadblock🚧 / road_crack💥 / heavy_traffic🚦 / animal_crossing🐄)
+  - Event type (capitalized, bold)
+  - Severity badge + Verification badge (✅ Verified / 🔄 Partial / ⚠️ Unverified)
+  - AI confidence bar (0–100%, color-coded: ≥85% green, ≥65% yellow, <65% red)
+  - Age ("2m ago")
+  - "🚨 EMERGENCY" pulsing badge if emergency field is set
+  - Bottom row: bus ID that detected it + GPS coordinates (small, muted)
+  Clicking an event card: fly map to event location, open popup on marker.
+
+Stats row (sticky at top of feed):
+  4 mini chips: [Total] [Critical] [Emergency] [Unverified]
+
+Empty state: Illustrated empty state — "Simulation starting…" with a spinner.
+
+--- TAB 2: DETECT (AI Detection Panel) ---
+Header: "AI Road Hazard Detector" + "YOLOv8s" model badge
+
+Upload area: Large dashed drag-and-drop zone
+  "Drop a road photo here or click to upload"
+  Accepts: jpg, png, jpeg, webp
+  On upload: POST /api/detect/image → show annotated image + results
+
+Demo scenes row: 5 scene buttons in a horizontal strip
+  [🕳️ Pothole] [🚦 Traffic Light] [🚗 Accident] [🌊 Waterlogging] [🚦 Heavy Traffic]
+  Click → GET /api/detect/sample/{0–4} → show result
+  Each button has a subtle road-texture thumbnail on hover
+
+Results area (appears after detection):
+  - Annotated image (POST /api/detect/image/annotated → show JPEG)
+  - Detection cards: each card shows class + confidence % (with progress bar) + severity badge
+  - Traffic info row: vehicle count, density chip, pedestrian count, congestion advice
+  - [🗺️ Inject to Live Map] button → POST /api/detect/inject
+    → shows green success toast: "Event injected to simulation!"
+
+--- TAB 3: SCALE & SPEED ---
+Section: Simulation Speed
+  Slider: 0.5× → 10× speed (POST /api/speed/{x} on change)
+  Current speed displayed as large number with "×" suffix
+
+Section: Scale Mode
+  Three cards side by side:
+    [City — 100 buses]  [State — 1,000 buses]  [India — 10,000 buses]
+    POST /api/scale/100 | /api/scale/1000 | /api/scale/10000
+  Active card highlighted in orange with checkmark
+  Below: scale metrics table showing (updates from /api/health):
+    Buses | Events/min | API RPS | Alert lag
+
+── MAP AREA ────────────────────────────────────────────────────
+Base map: Leaflet.js with CartoDB Positron tiles (light mode)
+          CartoDB DarkMatter tiles (dark mode)
+          Auto-switch when theme toggles.
+
+CDN links to use:
+  https://unpkg.com/leaflet@1.9.4/dist/leaflet.css
+  https://unpkg.com/leaflet@1.9.4/dist/leaflet.js
+  https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js
+
+Initial center: [28.6139, 77.2090] (Delhi), zoom 11
+
+Map layers (controlled by layer toggle buttons floating top-right of map):
+  [🚌 Buses toggle]  [🗺️ Routes toggle]  [🔥 Heatmap toggle]
+
+BUS MARKERS:
+  Custom circular markers, color = route color
+  10 Delhi routes, each with a distinct color:
+    red(#EF4444)    North Ring Road
+    blue(#3B82F6)   East Delhi
+    green(#22C55E)  South Delhi
+    yellow(#EAB308) Central Corridor
+    orange(#F97316) West Delhi
+    purple(#A855F7) NH-48
+    brown(#92400E)  Outer Ring North
+    gray(#6B7280)   South Loop
+    pink(#EC4899)   Airport Express
+    teal(#14B8A6)   Inner Ring
+  Marker: filled circle, route color border, 🚌 emoji inside, radius 8px
+  On click: popup showing bus ID, route, speed, network status (good/weak/offline)
+  Offline buses: marker gets a ⚠️ overlay icon
+
+ROUTE POLYLINES:
+  One polyline per route, color matching bus markers, opacity 0.4, weight 3
+  Data from GET /api/routes → routes array → each has waypoints array of {lat,lng}
+
+EVENT MARKERS:
+  Circle marker, radius 10
+  Color: critical=#DC2626, high=#F97316, medium=#EAB308, low=#16A34A
+  Pulsing animation for critical/emergency events (CSS keyframe scale pulse)
+  On click: popup with event details (type, severity, confidence %, age, detected_by,
+            verification status, emergency status, timeline last 3 entries)
+
+HEATMAP:
+  leaflet.heat layer from all event positions
+  Intensity weighted by severity (critical=1.0, high=0.7, medium=0.4, low=0.2)
+  Radius 25, blur 20
+
+FLOATING MAP CONTROLS (top-right):
+  Layer toggle pill group (Buses | Routes | Heatmap) — each toggleable
+  Zoom to Delhi button (home icon)
+
+── WEBSOCKET BEHAVIOR ──────────────────────────────────────────
+Connect on load: new WebSocket("ws://{location.host}/ws")
+On message (type="state"):
+  - Update bus marker positions (smooth transition)
+  - Add/update/remove event markers
+  - Update heatmap data
+  - Update live stats chips in nav bar
+  - Update events feed in sidebar
+  - Show toast for new events:
+    Toast types: [🔴 Emergency] [🟡 New Event] [📶 Bus reconnected] [ℹ️ Info]
+    Toast style: slides in from bottom-right, auto-dismiss 4.5s
+    Max 4 toasts visible at once
+  - Show pulsing red banner at top for any critical emergency events
+
+Reconnect with exponential backoff (500ms, 1s, 2s, 4s, max 8s)
+
+── TOASTS ──────────────────────────────────────────────────────
+Position: bottom-right, stacked, slide-up animation
+Types:
+  emergency: red background, 🚨 icon, 6s duration
+  new_event:  orange border left, 🔔 icon, 4.5s
+  success:    green border left, ✅ icon, 3s
+  info:       blue border left, ℹ️ icon, 3s
+
+── RESPONSIVE ──────────────────────────────────────────────────
+Mobile (<768px):
+  Sidebar collapses to bottom drawer (swipe up to open)
+  Map takes full screen
+  Nav stats chips collapse to icons only
+  Layer toggles move inside the drawer
+
+
+════════════════════════════════════════════════════════════════
+PAGE 2 — AUTHORITY COMMAND CENTER  (authority.html)
+════════════════════════════════════════════════════════════════
+
+URL: http://localhost:8000/authority?view={all|police|ambulance|road_authority|municipal}
+Backend WebSocket: ws://{host}/ws  (same state push as Page 1)
+Poll: GET /api/events/all  every 3s  (when view=all)
+Poll: GET /api/authority/{view}/events  every 3s  (when view=police/ambulance etc)
+Detail: GET /api/events/{id}  on card click
+
+── LAYOUT ──────────────────────────────────────────────────────
+Full-viewport, no scroll. Three zones:
+  [TOP NAV BAR — 56px fixed]
+  [LEFT PANEL — 400px, scrollable event list OR kanban]
+  [RIGHT DETAIL PANEL — 380px, slides in when event selected]
+  [Middle zone visible only when detail panel closed]
+
+── TOP NAV BAR ─────────────────────────────────────────────────
+Left:  🛡️  "Command Center"
+Center: Authority tab strip:
+  [📋 All Problems]  [🚔 Police]  [🚑 EMS]  [🚧 PWD]  [🏙️ Municipal]
+  Each tab has a colored dot matching authority color:
+    Police=#3B82F6, EMS=#EF4444, PWD=#F97316, Municipal=#22C55E
+  Active tab: filled background with authority color, white text
+Right: WS dot  |  ← Back to Map
+
+── STATS BAR (below nav) ────────────────────────────────────────
+6 stat cards in a horizontal row (full width):
+  [Total] [🔴 Critical] [🟡 Unassigned] [🔧 In Progress] [✅ Resolved] [🚨 Emergency]
+  Each card: large number (animated count-up on change), small label below
+  Card background: tinted to match type (critical=red tint, resolved=green tint etc)
+  Updates from /api/events/all response (status_counts + sev_counts)
+
+── FILTER + SEARCH BAR ─────────────────────────────────────────
+Left: Filter pills: [All] [Unassigned] [🔴 Critical] [🟠 High] [🚨 Emergency] [P1]
+      Active pill: filled with orange, white text
+Center: Sort select: Latest | Priority | Severity | Status
+Right: Search input: "🔍 Search ID or type…" (filters in real-time)
+Right: Event count label "24 events"
+
+── LEFT PANEL — ALL PROBLEMS VIEW (view=all) ───────────────────
+Scrollable vertical list of event row cards.
+Card design (row card):
+  ┌─[colored left border 4px]─────────────────────────────────┐
+  │ [icon 32px]  [Type name bold]  [ID small muted mono]      │
+  │              [SEV badge] [PRI badge] [EMG badge pulsing]  │
+  │              [📍 lat,lng]  [🚌 bus_id]  [🤖 conf%]  [⏱age]│
+  │              [Authority assignment chips]                  │
+  │                                         [Status badge →]  │
+  └────────────────────────────────────────────────────────────┘
+  Left border color: critical=red, high=orange, medium=yellow, low=green
+  Severity badge: colored pill (CRITICAL / HIGH / MEDIUM / LOW)
+  Priority badge: P1=red, P2=orange, P3=yellow, P4=green (only if set)
+  Emergency badge: pulsing red "🚨 EMERGENCY" (only if emergency field set)
+  Assignment chips: small pills per assigned authority with their color + status
+  Status badge: "unassigned" / "new" / "acknowledged" / "in progress" / "completed"
+  Hover: slight lift (box-shadow), orange border
+  Selected: orange border, light orange tint background
+
+Sorting logic:
+  latest:   sort by .ts descending
+  priority: sort by priority (p1>p2>p3>p4>none) then by .ts
+  severity: sort by severity (critical>high>medium>low) then by .ts
+  status:   sort by overall_status (in_progress>new>acknowledged>unassigned>completed)
+
+Filtering logic:
+  all:        show all
+  unassigned: overall_status == "unassigned" OR "new"
+  critical:   severity == "critical"
+  high:       severity == "high"
+  emergency:  emergency field not null and not "resolved"
+  p1:         priority == "p1"
+
+Search: match on event id + type name (case insensitive)
+
+Empty state: Illustrated card "No events match this filter" with filter icon.
+
+── LEFT PANEL — KANBAN VIEW (view=police|ambulance|road_authority|municipal) ──
+3 columns side by side, each scrollable independently:
+  [🔔 New / Ack  (n)]   [🔧 In Progress  (n)]   [✅ Completed  (n)]
+
+Column headers: colored background matching authority, white text, count badge
+
+Kanban card design:
+  ┌─[colored left border]────────────────────────────────────┐
+  │ [icon] [Type]                        [SEV] [PRI]        │
+  │ 🤖 {conf}%  ████░░ (confidence bar)  [ID small mono]    │
+  │ ⏱ {age}  |  {verification icon+label}                   │
+  │ 📍 {lat},{lng}  ·  {bus_id short}                       │
+  │ 💬 {last timeline entry, truncated}                      │
+  ├──────────────────────────────────────────────────────────┤
+  │ [👀 Acknowledge] [🔧 Start Work]          [🔍 Details]  │
+  └──────────────────────────────────────────────────────────┘
+  Confidence bar: filled portion = confidence %, color-coded
+  Action buttons per column:
+    New:      [👀 Acknowledge] [🔧 Start Work]
+    In Prog:  [✅ Mark Complete]
+    Done:     "✅ Resolved" label (no buttons)
+  All buttons → POST /api/authority/{auth}/work/{id}/{action}
+  [🔍 Details] → opens right detail panel
+  Clicking card → opens right detail panel
+
+── RIGHT DETAIL PANEL ───────────────────────────────────────────
+Slides in from right (width 380px, smooth transition).
+Has an X close button top-right.
+Closes on Escape key press.
+
+Header:
+  [Large icon]  [Event type bold]  [Event ID small mono]
+  Below header: severity badge + priority badge + status badge
+
+Body sections (scrollable):
+
+SECTION — Overview
+  Grid of label/value rows:
+    Severity    | colored badge
+    Priority    | colored badge (or "Not set")
+    Status      | colored badge
+    Verification| ✅/🔄/⚠️ + label
+    Emergency   | 🚨 + type (if active, pulsing red)
+    Location    | lat, lng  +  [📍 View on Map] link → back to /?lat=&lng=
+    Detected by | bus ID + model name
+    AI Confidence | colored percentage (≥85% green, ≥65% yellow, <65% red)
+    Age         | time string
+
+SECTION — Set Priority
+  4 cards in 2×2 grid:
+    [🔴 P1 Critical]  [🟠 P2 High]
+    [🟡 P3 Medium]    [🟢 P4 Low]
+  Active card: filled with matching color, white text, checkmark
+  Click → POST /api/events/{id}/priority/{level}
+  [✕ Clear priority] link below grid (only shown when priority is set)
+
+SECTION — Authority Assignments
+  One row per eligible authority (4 rows max):
+    [Icon] [Label]  [status chip]  [action buttons]  [✕ remove]
+  If not assigned:
+    [Icon] [Label]  [+ Assign button]
+  If assigned:
+    Row highlighted with authority color border
+    Status chip: colored text (new=orange, acknowledged=blue, in_progress=purple, completed=green)
+    Action buttons (based on status):
+      new → [👀 Acknowledge]
+      new/ack → [🔧 Start]
+      any → [✅ Complete]
+    Remove button: [✕] → DELETE /api/events/{id}/assign/{auth}
+    Assign button → POST /api/events/{id}/assign/{auth}
+
+SECTION — Field Notes
+  Textarea (3 rows, full width, monospace-ish)
+  [💾 Save Note] button → POST /api/authority/{auth}/work/{id}/note
+  Note: uses first assigned authority, or current view authority
+
+SECTION — Full Timeline
+  Reverse-chronological list of timeline entries
+  Each entry:
+    [colored dot]  [message text]  [time HH:MM:SS right-aligned]
+  Dot colors: 🤖=cyan (AI detection), 📋=blue (assignment), 🎯=purple (priority),
+              👀=teal (acknowledge), 🔧=orange (work started), ✅=green (complete),
+              🚨=red (emergency), 📶=gray (network)
+  If >8 entries: show 8 + [Show all N entries ↓] expand button
+
+── LIVE NOTIFICATION SYSTEM ─────────────────────────────────────
+WebSocket message handling (same as Page 1):
+  On new event appearing:
+    Toast: 🔔 "{icon} New: {type}" — "{id} · {severity}" (orange, 4.5s)
+  On emergency event:
+    Toast: 🚨 "{emergency type}" — "{event_id}" (red, 6s, no auto-dismiss)
+    Red pulsing banner at top of page: "🚨 EMERGENCY — {type} on {route}"
+  On bus reconnect (alert type="sync"):
+    Toast: 📶 "Bus reconnected" (blue, 3s)
+
+Auto-refresh detail panel when open:
+  Every 5s: re-fetch GET /api/events/{selId} → re-render detail panel silently
+
+── ACTIONS WITH FEEDBACK ────────────────────────────────────────
+Every API call that modifies state:
+  1. Button shows loading spinner during request
+  2. On success: green toast "✅ {action} — {event_id}"
+  3. On error: red toast "✗ Failed — {error message}"
+  4. Trigger fetchEnriched() + refreshDP() immediately after
+
+── VIEW SWITCHING ───────────────────────────────────────────────
+Switching tabs:
+  - Clears enriched + authItems state
+  - Hides/shows appropriate panel (list vs kanban)
+  - Resets filter to "all", search to ""
+  - Starts polling the correct API endpoint
+  - Updates URL: history.replaceState to ?view={tab}
+  - On load, read ?view= from URL and activate that tab
+
+── RESPONSIVE ──────────────────────────────────────────────────
+Mobile (<768px):
+  Detail panel: full screen overlay (100vw × 100vh), slide up
+  Kanban: single column, horizontal swipe between columns
+  Stats bar: 2×3 grid instead of 1×6
+
+
+════════════════════════════════════════════════════════════════
+SHARED DESIGN SYSTEM — apply to BOTH pages
+════════════════════════════════════════════════════════════════
+
+── COLORS ──────────────────────────────────────────────────────
+CSS custom properties (supports light + dark mode):
+
+Light mode:
+  --bg:           #FAFAFA
+  --surface:      #FFFFFF
+  --surface2:     #F1F5F9
+  --border:       #E2E8F0
+  --text:         #0F172A
+  --text-muted:   #64748B
+  --accent:       #F97316   ← saffron orange
+  --accent2:      #16A34A   ← India green
+  --danger:       #DC2626
+  --warning:      #D97706
+  --info:         #2563EB
+  --nav-bg:       #FFFFFF
+  --shadow:       0 1px 3px rgba(0,0,0,.1), 0 1px 2px rgba(0,0,0,.06)
+  --shadow-md:    0 4px 6px rgba(0,0,0,.07), 0 2px 4px rgba(0,0,0,.06)
+
+Dark mode (prefers-color-scheme:dark or .dark class on <html>):
+  --bg:           #0F172A
+  --surface:      #1E293B
+  --surface2:     #334155
+  --border:       #334155
+  --text:         #F1F5F9
+  --text-muted:   #94A3B8
+  --accent:       #FB923C   ← lighter orange for dark bg
+  --accent2:      #4ADE80
+  --danger:       #F87171
+  --warning:      #FCD34D
+  --info:         #60A5FA
+  --nav-bg:       #1E293B
+  --shadow:       0 1px 3px rgba(0,0,0,.4)
+
+Severity colors (same in both modes):
+  critical:  bg=#FEE2E2  text=#DC2626  border=#FCA5A5
+  high:      bg=#FEF3C7  text=#D97706  border=#FCD34D
+  medium:    bg=#FEF9C3  text=#CA8A04  border=#FDE68A
+  low:       bg=#DCFCE7  text=#16A34A  border=#86EFAC
+
+Priority colors:
+  p1: same as critical
+  p2: same as high
+  p3: same as medium
+  p4: same as low
+
+Authority colors:
+  police:         #3B82F6 (blue)
+  ambulance:      #EF4444 (red)
+  road_authority: #F97316 (orange)
+  municipal:      #22C55E (green)
+
+── TYPOGRAPHY ──────────────────────────────────────────────────
+Google Fonts import (add to <head>):
+  https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=DM+Sans:wght@400;500;700&display=swap
+
+  font-family: 'Inter', system-ui, sans-serif  (headings, nav, badges)
+  font-family: 'DM Sans', system-ui, sans-serif (body text, cards)
+  font-family: 'JetBrains Mono', monospace (event IDs, code, coords)
+    → fallback: ui-monospace, 'Cascadia Code', monospace
+
+Scale:
+  xs:   11px  (meta labels, timestamps)
+  sm:   12px  (muted secondary text)
+  base: 14px  (body)
+  md:   16px  (card titles)
+  lg:   18px  (section headers)
+  xl:   24px  (page titles)
+  2xl:  32px  (stat numbers)
+
+── COMPONENT SPECS ─────────────────────────────────────────────
+
+BADGES (pill-shaped):
+  padding: 2px 8px, border-radius: 9999px, font-size: 11px, font-weight: 700
+  All-caps text for severity/status badges
+
+CARDS:
+  background: var(--surface)
+  border: 1px solid var(--border)
+  border-radius: 12px
+  box-shadow: var(--shadow)
+  padding: 12px 16px
+
+BUTTONS:
+  Primary:    bg=accent, text=white, hover=darken 10%
+  Secondary:  bg=surface2, text=text, border=border
+  Danger:     bg=danger, text=white
+  Ghost:      bg=transparent, text=accent, hover=accent bg at 10% opacity
+  All buttons: border-radius: 8px, font-weight: 600, transition: all 150ms
+
+INPUTS:
+  background: var(--surface)
+  border: 1px solid var(--border)
+  border-radius: 8px
+  padding: 8px 12px
+  focus: border-color=accent, box-shadow: 0 0 0 3px accent/20%
+
+NAV BAR:
+  background: var(--nav-bg)
+  border-bottom: 1px solid var(--border)
+  box-shadow: var(--shadow)
+  height: 56px
+  position: sticky, top: 0, z-index: 100
+
+SCROLLBARS (custom, thin):
+  width: 4px
+  track: transparent
+  thumb: var(--border), border-radius: 4px
+  thumb:hover: var(--text-muted)
+
+── ANIMATIONS ──────────────────────────────────────────────────
+All CSS transitions: 150ms ease (interactive), 220ms ease (panels/drawers)
+Keyframes to define:
+  @keyframes pulse-ring: scale 1→1.4, opacity 1→0 (for emergency markers)
+  @keyframes slide-in-right: translateX(100%)→0 (detail panel)
+  @keyframes slide-up: translateY(20px)+opacity0 → translateY(0)+opacity1 (toasts)
+  @keyframes count-up: number animation for stat cards (via JS)
+  @keyframes spin: 360deg (loading spinners)
+  @keyframes fade-in: opacity 0→1 (content load)
+
+── LOADING STATES ───────────────────────────────────────────────
+Initial page load overlay:
+  Centered on page, saffron spinner (border-top: 3px solid var(--accent))
+  "Connecting to simulation…" below spinner
+  Disappears when first WS message received
+
+Button loading state: spinner icon replaces button text, disabled
+Skeleton loading: gray animated shimmer for stat numbers before first data arrives
+
+── ICONS ────────────────────────────────────────────────────────
+Use emoji for event type icons (already in data from backend):
+  pothole=🕳️, accident=🚗, waterlogging=🌊, fallen_tree=🌲
+  roadblock=🚧, road_crack=💥, heavy_traffic=🚦, animal_crossing=🐄
+
+For UI icons use Lucide Icons CDN (no install needed):
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  Usage: <i data-lucide="map-pin"></i> then lucide.createIcons()
+  Icons used: map-pin, bus, alert-triangle, check-circle, x, chevron-right,
+              filter, search, sliders, zap, shield, activity, wifi, wifi-off,
+              sun, moon, arrow-left, clock, user, flag, trash-2, edit-3
+
+
+════════════════════════════════════════════════════════════════
+EXACT API CONTRACT — DO NOT CHANGE
+════════════════════════════════════════════════════════════════
+
+WebSocket:
+  ws://{location.host}/ws
+  Message format: { type: "state", buses: [...], events: [...], alerts: [...] }
+  Bus object: { id, route, lat, lng, speed, network, icon }
+  Event object: { id, type, icon, lat, lng, confidence, severity, detected_by,
+                  ts, age_s, verification, verifier_count, emergency, timeline }
+  Alert object: { ts, type, level, msg, event_id }
+
+REST endpoints (all relative paths, same host port 8000):
+  GET  /api/routes              → { routes: [{id, name, color, waypoints:[{lat,lng}]}] }
+  GET  /api/health              → { status, uptime_s, buses, events, ws_clients, ai_available }
+  GET  /api/events/all          → { events:[...], total, status_counts, sev_counts }
+  GET  /api/events/{id}         → full event with assignments, priority, full_timeline
+  POST /api/events/{id}/priority/{level}  body: none  (level: p1|p2|p3|p4|none)
+  POST /api/events/{id}/assign/{auth}     body: none
+  DEL  /api/events/{id}/assign/{auth}     body: none
+  GET  /api/authority/{auth}/events       → { authority, items:[...], counts, total }
+  POST /api/authority/{auth}/work/{id}/{action}  body: {}  (action: acknowledge|start|complete)
+  POST /api/authority/{auth}/work/{id}/note      body: { notes: "string" }
+  POST /api/detect/image         body: FormData file  → { detections, traffic, summary }
+  POST /api/detect/image/annotated body: FormData file → JPEG binary
+  GET  /api/detect/sample/{n}    → { detections, traffic, summary, annotated_b64 }
+  POST /api/detect/inject        body: { detections, lat, lng }  → { ok, event_id }
+  POST /api/scale/{n}            body: none  (n: 100|1000|10000)
+  POST /api/speed/{x}            body: none  (x: 0.5–10.0)
+
+Authority type values: "police" | "ambulance" | "road_authority" | "municipal"
+Priority level values: "p1" | "p2" | "p3" | "p4" | "none"
+Work actions:          "acknowledge" | "start" | "complete" | "note"
+
+
+════════════════════════════════════════════════════════════════
+DELIVERABLES
+════════════════════════════════════════════════════════════════
+
+Produce two complete, self-contained HTML files:
+
+1. index.html
+   - Leaflet map (import from CDN)
+   - Lucide icons (import from CDN)
+   - Inter + DM Sans fonts (Google Fonts)
+   - All CSS in <style> block
+   - All JS in <script> block at bottom
+   - Zero external dependencies beyond CDN links above
+   - Must handle WS connect/reconnect/fallback gracefully
+
+2. authority.html
+   - Same CDN imports (Leaflet NOT needed here)
+   - All CSS in <style> block
+   - All JS in <script> block at bottom
+   - Zero external dependencies beyond CDN links above
+   - URL param ?view= handled on load
+
+Both files must:
+   ✓ Work by simply placing in a static/ folder served by FastAPI
+   ✓ Have light/dark theme toggle that persists via localStorage
+   ✓ Be fully functional on Chrome, Firefox, and Edge
+   ✓ Be responsive (mobile-friendly)
+   ✓ Have no console errors on load
+   ✓ Show all features described above
+
+════════════════════════════════════════════════════════════════
+END OF PROMPT
+════════════════════════════════════════════════════════════════
